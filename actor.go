@@ -1,37 +1,26 @@
 package concurrent
 
-import (
-	"fmt"
-)
+type ActorReceiver interface {
+	receive(request interface{}, sender chan<- interface{})
+}
 
-type Vector struct {
-	X int
-	Y int
+type Request struct {
+	Data     interface{}
+	Sender chan<- interface{}
 }
 
 type Actor struct {
-	Ask chan interface{}
+	Send     chan<- Request
+	receiver ActorReceiver
 }
 
-func NewActor() *Actor {
-	actor := &Actor{make(chan interface{}, 5)}
-	actor.receive()
-	return actor
-}
-
-func (a *Actor) receive() {
+func NewActor(receiver ActorReceiver) *Actor {
+	c := make(chan Request, 50)
+	actor := &Actor{c, receiver}
 	go func() {
-		for i := range a.Ask {
-			switch v := i.(type) {
-			case int:
-				fmt.Printf("Twice %v is %v\n", v, v*2)
-			case string:
-				fmt.Printf("%q is %v bytes long\n", v, len(v))
-			case Vector:
-				fmt.Printf("x: %v, y:%v \n", v.X, v.Y)
-			default:
-				fmt.Printf("I don't know about type %T!\n", v)
-			}
+		for request := range c {
+			receiver.receive(request.Data, request.Sender)
 		}
 	}()
+	return actor
 }
